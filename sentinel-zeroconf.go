@@ -15,6 +15,7 @@ func main() {
 	}
 
 	for i := 0; i < 5; i++ {
+		// todo: add lock for lock checking :P
 		queryResponse, _, err := getMaster(client)
 		if err != nil {
 			panic(err)
