@@ -2,10 +2,9 @@ package main
 
 import (
 	"github.com/hashicorp/consul/api"
-	"github.com/garyburd/redigo/redis"
 	"log"
-	"fmt"
 	"os"
+	"time"
 )
 
 func main() {
@@ -14,10 +13,55 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	kv := client.KV()
-	session := client.Session()
 
+	for i := 0; i < 5; i++ {
+		queryResponse, _, err := getMaster(client)
+		if err != nil {
+			panic(err)
+		}
 
+		if len(queryResponse.Nodes) == 0 {
+			lockHeld := consulLock(client)
+			if lockHeld {
+				updateTag(client, "master")
+				break
+			} else {
+				time.Sleep(1 * time.Second)
+				continue
+			}
+		} else {
+			updateTag(client, "slave")
+			break
+		}
+	}
+
+	os.Exit(0)
+}
+
+func updateTag(client *api.Client, tag string) {
+	agent := client.Agent()
+	services, err := agent.Services()
+	if err != nil {
+		panic(err)
+	}
+	service := services["redis"]
+
+	serviceRegistration := &api.AgentServiceRegistration{
+		ID: service.ID,
+		Name: service.Service,
+		Tags: []string{"sensu", tag},
+		Port: service.Port,
+		Address: service.Address,
+		EnableTagOverride: service.EnableTagOverride,
+	}
+
+	err = agent.ServiceRegister(serviceRegistration)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func getMaster(client *api.Client) (*api.PreparedQueryExecuteResponse, *api.QueryMeta, error){
 	preparedQuery := client.PreparedQuery()
 	preparedQueries, _, err := preparedQuery.List(&api.QueryOptions{})
 	if err != nil {
@@ -44,16 +88,15 @@ func main() {
 		masterQuery = masterQueryDefinition
 	}
 
-	queryResponse, _, err := preparedQuery.Execute(masterQuery.ID, &api.QueryOptions{})
-	if err != nil {
-		panic(err)
-	}
+	return preparedQuery.Execute(masterQuery.ID, &api.QueryOptions{})
+}
 
-	log.Printf("%+v", queryResponse.Nodes)
-	os.Exit(0)
+func consulLock(client *api.Client) bool {
 
+	//kv := client.KV()
+	//session := client.Session()
 
-	lock, err := client.LockOpts(&api.LockOptions{Key: "sentinel", LockTryOnce: true})
+	lock, err := client.LockOpts(&api.LockOptions{Key: "sensu-master", LockTryOnce: true, LockWaitTime: 0 * time.Second})
 	if err != nil {
 		panic(err)
 	}
@@ -65,44 +108,10 @@ func main() {
 	lockHeld := false
 	if lockChan == nil {
 		log.Println("lock aquisition failed")
-
-		kvData, _, err := kv.Get("sentinel", &api.QueryOptions{})
-		if err != nil {
-			panic(err)
-		}
-
-		sessionData, _, err := session.Info(kvData.Session, &api.QueryOptions{})
-		log.Printf("%+v", sessionData)
-
-		redis, err := redis.DialURL("redis://localhost/0")
-		if err != nil {
-			panic(err)
-		}
-		resp, err := redis.Do("slaveof", sessionData.Node, 6379)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("%+v", resp)
-
-
-/*type KVPair struct {
-    Key         string
-    CreateIndex uint64
-    ModifyIndex uint64
-    LockIndex   uint64
-    Flags       uint64
-    Value       []byte
-    Session     string
-}*/
-
 	} else {
 		log.Println("got lock")
 		lockHeld = true
 	}
-	log.Println(lockHeld)
 
-	for {
-		log.Println(<-lockChan)
-	}
-
+	return lockHeld
 }
