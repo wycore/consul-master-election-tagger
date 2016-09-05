@@ -1,4 +1,4 @@
-package: github.com/wywygmbh/sentinel-zeroconf
+package: github.com/wywygmbh/consul-master-election-tagger
 import:
 - package: github.com/garyburd/redigo
   subpackages:
