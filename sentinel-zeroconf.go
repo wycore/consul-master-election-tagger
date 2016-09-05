@@ -1,13 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/hashicorp/consul/api"
 	"log"
 	"os"
-	"time"
-	"flag"
 	"sort"
+	"time"
 )
 
 var queryName string
@@ -50,7 +50,7 @@ func main() {
 				lock.Unlock()
 				panic(r)
 			}
-		} (lockCheck)
+		}(lockCheck)
 		// retry to lock
 		if lockCheckHeld == false {
 			continue
@@ -69,7 +69,7 @@ func main() {
 					lock.Unlock()
 					panic(r)
 				}
-			} (lock)
+			}(lock)
 			if lockHeld {
 				// set master state
 				updateTag(client, "master")
@@ -248,11 +248,11 @@ func inSlice(element string, slice []string) bool {
 func slicesEqual(a, b []string) bool {
 
 	if a == nil && b == nil {
-		return true;
+		return true
 	}
 
 	if a == nil || b == nil {
-		return false;
+		return false
 	}
 
 	if len(a) != len(b) {
