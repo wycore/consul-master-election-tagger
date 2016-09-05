@@ -5,7 +5,7 @@ PACKAGES := $(shell GOPATH=$(GOPATH) go list ./... | grep -v /vendor/)
 all: install
 
 build: install_deps
-	GOPATH=$(GOPATH) $(GO) build -ldflags "-X main.version=`cat VERSION`"
+	GOPATH=$(GOPATH) $(GO) build
 
 fmt:
 	GOPATH=$(GOPATH) find . -name "*.go" | xargs gofmt -w
