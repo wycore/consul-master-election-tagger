@@ -22,7 +22,7 @@ func main() {
 		}
 
 		if len(queryResponse.Nodes) == 0 {
-			lockHeld := consulLock(client, "sensu-master")
+			lockHeld := consulLock(client, "sensu-master", 0 * time.Second)
 			if lockHeld {
 				updateTag(client, "master")
 				break
@@ -92,12 +92,12 @@ func getMaster(client *api.Client) (*api.PreparedQueryExecuteResponse, *api.Quer
 	return preparedQuery.Execute(masterQuery.ID, &api.QueryOptions{})
 }
 
-func consulLock(client *api.Client, key string) bool {
+func consulLock(client *api.Client, key string, lockWaitTime time.Duration) bool {
 
 	//kv := client.KV()
 	//session := client.Session()
 
-	lock, err := client.LockOpts(&api.LockOptions{Key: key, LockTryOnce: true, LockWaitTime: 0 * time.Second})
+	lock, err := client.LockOpts(&api.LockOptions{Key: key, LockTryOnce: true, LockWaitTime: lockWaitTime})
 	if err != nil {
 		panic(err)
 	}
