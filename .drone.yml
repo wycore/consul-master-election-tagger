@@ -1,0 +1,24 @@
+image: golang:1.7
+script:
+  - apt-get update
+  - apt-get install bzip2 sudo
+  - make test
+publish:
+  github:
+    branch: master
+    script:
+      - make build
+    artifacts:
+      - consul-master-election-tagger
+    tag: v$(cat VERSION)
+    token: 96d4a357492e429c253426de5d9eb10d64a672ee
+    user: wywygmbh
+    repo: consul-master-election-tagger
+notify:
+  slack:
+    webhook_url: 'https://hooks.slack.com/services/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'
+    username: 'drone'
+    channel: '#platform'
+    on_started: false
+    on_success: false
+    on_failure: true

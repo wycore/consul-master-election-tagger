@@ -7,6 +7,10 @@ all: install
 build: install_deps
 	GOPATH=$(GOPATH) $(GO) build
 
+test: install_deps
+	GOPATH=$(GOPATH) $(GO) test -cover $(PACKAGES)
+	GOPATH=$(GOPATH) $(GO) vet $(PACKAGES)
+
 fmt:
 	GOPATH=$(GOPATH) find . -name "*.go" | xargs gofmt -w
 
