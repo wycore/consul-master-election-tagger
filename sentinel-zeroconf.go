@@ -45,15 +45,17 @@ func main() {
 		log.Printf("%d. try", i+1)
 		// lock for tag update to prevent race condition
 		lockCheckHeld, lockCheck = consulLock(client, fmt.Sprintf("check-%s-%s", queryName, serviceName), 10*time.Second)
-		defer func(lock *api.Lock) {
-			if r := recover(); r != nil {
-				lock.Unlock()
-				panic(r)
-			}
-		}(lockCheck)
+
 		// retry to lock
 		if lockCheckHeld == false {
 			continue
+		} else {
+			defer func(lock *api.Lock) {
+				if r := recover(); r != nil {
+					lock.Unlock()
+					panic(r)
+				}
+			}(lockCheck)
 		}
 		// try to get master node
 		queryResponse, _, err := getMaster(client)
@@ -64,13 +66,14 @@ func main() {
 		if len(queryResponse.Nodes) == 0 {
 			// try to get master state
 			lockHeld, lock := consulLock(client, fmt.Sprintf("master-%s-%s", queryName, serviceName), 0*time.Second)
-			defer func(lock *api.Lock) {
-				if r := recover(); r != nil {
-					lock.Unlock()
-					panic(r)
-				}
-			}(lock)
+
 			if lockHeld {
+				defer func(lock *api.Lock) {
+					if r := recover(); r != nil {
+						lock.Unlock()
+						panic(r)
+					}
+				}(lock)
 				// set master state
 				updateTag(client, "master")
 				// unlock 'master' lock
