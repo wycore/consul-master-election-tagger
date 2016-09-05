@@ -47,6 +47,8 @@ func updateTag(client *api.Client, tag string) {
 	}
 	service := services["redis"]
 
+	log.Printf("trying to add tag '%s' to service '%s'", tag, service.Service)
+
 	serviceRegistration := &api.AgentServiceRegistration{
 		ID: service.ID,
 		Name: service.Service,
@@ -60,6 +62,8 @@ func updateTag(client *api.Client, tag string) {
 	if err != nil {
 		panic(err)
 	}
+
+	log.Printf("successfully added tag '%s' to service '%s'", tag, service.Service)
 }
 
 func getMaster(client *api.Client) (*api.PreparedQueryExecuteResponse, *api.QueryMeta, error){
