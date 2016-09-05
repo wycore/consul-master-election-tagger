@@ -6,15 +6,34 @@ import (
 	"log"
 	"os"
 	"time"
+	"flag"
+	"sort"
 )
 
-// todo: add as arguments
-var queryName string = "sensu-master"
-var queryTags []string = []string{"sensu", "master"}
-var serviceName string = "redis"
+var queryName string
+var queryTags StringSliceFlag
+var serviceName string
+
+func init() {
+	queryTags = StringSliceFlag{}
+	queryTags.Set("master")
+	flag.StringVar(&queryName, "consul-query-name", "", "-consul-query-name master")
+	flag.Var(&queryTags, "consul-query-tag", "-consul-query-tag serviceName (tag 'master' is set by default)")
+	flag.StringVar(&serviceName, "consul-service-name", "", "-consul-service-name serviceName")
+	flag.Parse()
+
+	sort.Strings(queryTags)
+
+	if queryName == "" {
+		log.Fatal("argument -consul-query-name is not set")
+	}
+
+	if serviceName == "" {
+		log.Fatal("argument -consul-service-name is not set")
+	}
+}
 
 func main() {
-
 	client, err := api.NewClient(api.DefaultConfig())
 	if err != nil {
 		panic(err)
@@ -122,13 +141,31 @@ func getMaster(client *api.Client) (*api.PreparedQueryExecuteResponse, *api.Quer
 	var masterQuery api.PreparedQueryDefinition
 	for _, query := range preparedQueries {
 		if query.Name == queryName {
+			// sort queries service tags to be able to compare them to the given query tags
+			sort.Strings(query.Service.Tags)
+			// compare tags
+			tagsEqual := slicesEqual(query.Service.Tags, queryTags)
+			// compare service names
+			serviceEqual := (query.Service.Service == serviceName)
+			// check if wee need to recreate the query
+			recreateQuery := !tagsEqual || !serviceEqual
+			if recreateQuery {
+				log.Printf("deleting existing query '%s' with wrong configuration", query.Name)
+				_, err := preparedQuery.Delete(query.ID, &api.QueryOptions{})
+				if err != nil {
+					panic(err)
+				}
+				break
+			}
 			log.Printf("found query: %s", query.Name)
 			masterQuery = *query
 			break
 		}
 	}
+	// check if query exists
 	if masterQuery.ID == "" {
-		log.Println("query not found, creating")
+		// create query
+		log.Printf("query not found, creating query '%s'", queryName)
 
 		masterQueryDefinition := api.PreparedQueryDefinition{
 			Name: queryName,
@@ -138,6 +175,7 @@ func getMaster(client *api.Client) (*api.PreparedQueryExecuteResponse, *api.Quer
 				Tags:        queryTags,
 			},
 		}
+
 		newMasterQueryId, _, err := preparedQuery.Create(&masterQueryDefinition, &api.WriteOptions{})
 		if err != nil {
 			panic(err)
@@ -150,9 +188,6 @@ func getMaster(client *api.Client) (*api.PreparedQueryExecuteResponse, *api.Quer
 }
 
 func consulLock(client *api.Client, key string, lockWaitTime time.Duration) (bool, *api.Lock) {
-
-	//kv := client.KV()
-	//session := client.Session()
 
 	lock, err := client.LockOpts(&api.LockOptions{Key: key, LockTryOnce: true, LockWaitTime: lockWaitTime})
 	if err != nil {
@@ -195,4 +230,27 @@ func inSlice(element string, slice []string) bool {
 	}
 
 	return false
+}
+
+func slicesEqual(a, b []string) bool {
+
+	if a == nil && b == nil {
+		return true;
+	}
+
+	if a == nil || b == nil {
+		return false;
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
