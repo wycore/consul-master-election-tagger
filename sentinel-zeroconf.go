@@ -52,7 +52,7 @@ func updateTag(client *api.Client, tag string) {
 	serviceRegistration := &api.AgentServiceRegistration{
 		ID: service.ID,
 		Name: service.Service,
-		Tags: []string{"sensu", tag},
+		Tags: append(cleanupTagSlice(service.Tags), tag),
 		Port: service.Port,
 		Address: service.Address,
 		EnableTagOverride: service.EnableTagOverride,
@@ -119,4 +119,17 @@ func consulLock(client *api.Client, key string, lockWaitTime time.Duration) bool
 	}
 
 	return lockHeld
+}
+
+// removes the "master" and "slave" from the given slice
+func cleanupTagSlice(slice []string) []string {
+	var result []string
+	for _, v := range slice {
+		if v == "master" || v == "slave" {
+			continue
+		}
+		result = append(result, v)
+	}
+
+	return result
 }
