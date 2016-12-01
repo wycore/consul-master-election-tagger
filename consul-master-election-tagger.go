@@ -167,7 +167,7 @@ func getMaster(client *api.Client) (*api.PreparedQueryExecuteResponse, *api.Quer
 			recreateQuery := !tagsEqual || !serviceEqual
 			if recreateQuery {
 				log.Printf("deleting existing query '%s' with wrong configuration", query.Name)
-				_, err := preparedQuery.Delete(query.ID, &api.QueryOptions{})
+				_, err := preparedQuery.Delete(query.ID, &api.WriteOptions{})
 				if err != nil {
 					panic(err)
 				}

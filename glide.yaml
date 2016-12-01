@@ -4,6 +4,6 @@ import:
   subpackages:
   - redis
 - package: github.com/hashicorp/consul
-  version: ^0.7.0-test3
+  version: ^0.7.1
   subpackages:
   - api
