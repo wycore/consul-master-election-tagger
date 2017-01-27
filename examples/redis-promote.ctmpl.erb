@@ -1,0 +1,22 @@
+#!/bin/bash
+set -e
+
+# we set "no one" per default, it will get overwritten once the loop catches the current master
+# if there is no master found, we break replication
+master_ip=no
+master_port=one
+
+{{range service "sensu.redis" -}}
+{{if .Tags.Contains "master" -}}
+master_ip={{.Address}}
+master_port={{.Port}}
+{{end -}}
+{{end -}}
+
+if [ "$master_ip" == "<%= scope.lookupvar("::ipaddress") %>" ]
+then
+    master_ip=no
+    master_port=one
+fi
+
+redis-cli slaveof $master_ip $master_port
