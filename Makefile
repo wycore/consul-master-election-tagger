@@ -2,8 +2,6 @@ GO ?= go
 GOPATH := $(CURDIR)/../../../..
 PACKAGES := $(shell GOPATH=$(GOPATH) go list ./... | grep -v /vendor/)
 
-all: install
-
 build: install_deps
 	GOPATH=$(GOPATH) $(GO) build
 
